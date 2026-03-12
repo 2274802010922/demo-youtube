@@ -1,29 +1,50 @@
 import streamlit as st
 import requests
+import pandas as pd
 
 API_KEY = "AIzaSyAK89AZdFqWG3NJmR1TnUbM1QUdrQWD6AM"
 
-st.title("YouTube Video Search")
+st.title("YouTube Comment Extractor")
 
-query = st.text_input("Search video")
+video_url = st.text_input("Enter YouTube Video URL")
 
-if query:
-    url = "https://www.googleapis.com/youtube/v3/search"
+if video_url:
+
+    video_id = video_url.split("v=")[-1]
+
+    url = "https://www.googleapis.com/youtube/v3/commentThreads"
 
     params = {
         "part": "snippet",
-        "q": query,
-        "type": "video",
-        "maxResults": 5,
+        "videoId": video_id,
+        "maxResults": 100,
         "key": API_KEY
     }
 
     response = requests.get(url, params=params)
     data = response.json()
 
-    for item in data["items"]:
-        title = item["snippet"]["title"]
-        video_id = item["id"]["videoId"]
+    comments = []
 
-        st.write(title)
-        st.video(f"https://youtube.com/watch?v={video_id}")
+    for item in data["items"]:
+        snippet = item["snippet"]["topLevelComment"]["snippet"]
+
+        comments.append({
+            "author": snippet["authorDisplayName"],
+            "comment": snippet["textDisplay"],
+            "likes": snippet["likeCount"]
+        })
+
+    df = pd.DataFrame(comments)
+
+    st.write("Comments")
+    st.dataframe(df)
+
+    csv = df.to_csv(index=False).encode("utf-8-sig")
+
+    st.download_button(
+        "Download CSV",
+        csv,
+        "youtube_comments.csv",
+        "text/csv"
+    )
